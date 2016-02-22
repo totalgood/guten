@@ -1,19 +1,19 @@
+Guten
 =====
-guten
-=====
 
-
-Add a short description here!
-
+A well-read bot!
 
 Description
-===========
+-----------
 
-A LONGER DESCRIPTION OF YOUR PROJECT GOES HERE...
+A bot that has read all of the Gutenberg project texts and several other
+large high-quality text repositories. Hopefully this will give it the
+vocabulary, if not the personality and intelligence of professional
+human writers.
 
+PyScaffold Rocks!
+-----------------
 
-Note
-====
-
-This project has been set up using PyScaffold 2.4.4. For details and usage
-information on PyScaffold see http://pyscaffold.readthedocs.org/.
+This project was set up using PyScaffold. See
+`pyscaffold.readthedocs.org <http://pyscaffold.readthedocs.org/>`__ to
+find out how you too can build your stuff with good scaffolding.
