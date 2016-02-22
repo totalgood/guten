@@ -27,8 +27,10 @@ __copyright__ = "TotalGood"
 __license__ = "MIT"
 
 
-def extract_extensions(file_path='ls-R.txt', limit=float('inf'), stream=True):
+def extract_extensions(file_path='ls-R.txt', limit=float('inf'),
+                       include_pattern=re.compile(r'^.txt$'), glob='*', stream=True):
     extensions = set()
+    glob = str(glob or '')
     with open(file_path) as fin:
         for i, line in enumerate(fin):
             if not stream and not i % 1000:
@@ -36,21 +38,24 @@ def extract_extensions(file_path='ls-R.txt', limit=float('inf'), stream=True):
             line = line.rstrip('\r\n')
             # print(line.rstrip('\r\n'))
             ext = CRE_EXT.match(line)
-            if ext and ext.groups()[1] not in extensions:
+            if ext and ext.groups()[1] not in extensions and not include_pattern.match(ext.groups[1]):
                 extensions.add(ext.groups()[1])
                 if stream:
-                    print(ext.groups()[1])
+                    print(glob + ext.groups()[1])
             if len(extensions) > limit:
                 break
     return extensions
 
 
-def write_excludes(extensions, file_path='excludes.txt', include_pattern=re.compile(r'^.txt$')):
+def write_excludes(extensions, file_path='excludes.txt', eol='\n',
+                   include_pattern=re.compile(r'^.txt$'), glob='*'):
     lines = 0
+    glob = str(glob or '')
+    eol = str(eol or '\n')
     with open(file_path, 'w') as fout:
         for ext in extensions:
             if not include_pattern.match(ext):
-                fout.write('*' + ext + '\n')
+                fout.write(glob + ext + eol)
                 lines += 1
     return lines
 
@@ -66,7 +71,7 @@ def parse_args(args):
     parser.add_argument('-v', '--version',
                         action='version',
                         version='guten {ver}'.format(ver=__version__))
-    parser.add_argument('file_path', nargs='?', default="../data/ls-R",
+    parser.add_argument('file_path', nargs='?', default="data/ls-R",
                         help='Path to a file containing a list of file names in the format output by `ls -R` > $FILE_PATH')
     return parser.parse_args(args)
 
