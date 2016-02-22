@@ -38,7 +38,7 @@ def extract_extensions(file_path='ls-R.txt', limit=float('inf'),
             line = line.rstrip('\r\n')
             # print(line.rstrip('\r\n'))
             ext = CRE_EXT.match(line)
-            if ext and ext.groups()[1] not in extensions and not include_pattern.match(ext.groups[1]):
+            if ext and ext.groups()[1] not in extensions and not include_pattern.match(ext.groups()[1]):
                 extensions.add(ext.groups()[1])
                 if stream:
                     print(glob + ext.groups()[1])
