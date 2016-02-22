@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 CRE_EXT = re.compile(r'^([^.]+|[^.]+[.][^.]+|[^.]+[.][^.]+[.][^.]+)([.][^.]*[^:])$')
 
 __author__ = "Hobson Lane"
-__copyright__ = "Hack Oregon, Hack University"
+__copyright__ = "TotalGood"
 __license__ = "MIT"
 
 
