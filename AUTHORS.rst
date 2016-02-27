@@ -1,5 +1,4 @@
-==========
-Developers
-==========
+Authors
+-------
 
-* Hobson Lane <hobsonlane@gmail.com>
+* Hobson Lane <hobson@totalgood.com>

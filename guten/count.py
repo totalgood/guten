@@ -4,9 +4,25 @@
 from __future__ import division, print_function, absolute_import
 
 import os
+import stat
 import collections
 import warnings
 import datetime
+from itertools import tee
+
+from gensim.corpora import TextCorpus
+from guten.wordvec import generate_tokens
+
+import sys
+import logging
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+# logging.basicConfig(format='%(name)s.%(module)s:%(lineno)d: %(message)s', stream='ext://sys.stderr')
+log = logging.getLogger(__name__)
+handler = logging.StreamHandler(stream=sys.stdout)
+handler.setFormatter('%(name)s.%(module)s:%(lineno)d: %(message)s')
+log.addHandler(handler)
 
 
 # TODO: eol is unused
@@ -194,6 +210,8 @@ def path_status(path, filename='', status=None, verbosity=0):
 
     Returns:
         dict: {'size': bytes (int), 'accessed': (datetime), 'modified': (datetime), 'created': (datetime)}
+
+    >>> path_status('.')
     """
     status = status or {}
     if not filename:
@@ -207,32 +225,20 @@ def path_status(path, filename='', status=None, verbosity=0):
     status['path'] = full_path
     status['dir'] = dir_path
     status['type'] = []
+    stat_types = dict(zip('sock chr blk fifo'.split(), 'socket special block-device pipe'.split()))
     try:
         status['size'] = os.path.getsize(full_path)
         status['accessed'] = datetime.datetime.fromtimestamp(os.path.getatime(full_path))
         status['modified'] = datetime.datetime.fromtimestamp(os.path.getmtime(full_path))
         status['created'] = datetime.datetime.fromtimestamp(os.path.getctime(full_path))
         status['mode'] = os.stat(full_path).st_mode   # first 3 digits are User, Group, Other permissions: 1=execute,2=write,4=read
-        if os.path.ismount(full_path):
-            status['type'] += ['mount-point']
-        elif os.path.islink(full_path):
-            status['type'] += ['symlink']
-        if os.path.isfile(full_path):
-            status['type'] += ['file']
-        elif os.path.isdir(full_path):
-            status['type'] += ['dir']
+        for t in ('mount', 'file', 'link', 'dir'):
+            status['type'] += int(getattr(os.path, 'is' + t)(full_path)) * [t]
         if not status['type']:
-            if os.stat.S_ISSOCK(status['mode']):
-                status['type'] += ['socket']
-            elif os.stat.S_ISCHR(status['mode']):
-                status['type'] += ['special']
-            elif os.stat.S_ISBLK(status['mode']):
-                status['type'] += ['block-device']
-            elif os.stat.S_ISFIFO(status['mode']):
-                status['type'] += ['pipe']
-        if not status['type']:
-            status['type'] += ['unknown']
-        elif status['type'] and status['type'][-1] == 'symlink':
+            for t, name in stat_types.iteritems():
+                status['type'] += int(getattr(stat, 'S_IS' + t.upper())(status['mode'])) * [name]
+        status['type'] = status['type'] or ['unknown']
+        if status['type'] and status['type'][-1] == 'link':
             status['type'] += ['broken']
     except OSError:
         status['type'] = ['nonexistent'] + status['type']
@@ -241,3 +247,61 @@ def path_status(path, filename='', status=None, verbosity=0):
     status['type'] = '->'.join(status['type'])
 
     return status
+
+
+class GensimCorpus(TextCorpus):
+    """Simple iterator to mimic exactly what gensim does internally with its iterators
+
+    Modeled after gensim.corpora.WikiCorpus
+    """
+
+    def __init__(self, input=None, dictionary=None, tokenize=None):
+        if dictionary is not None:
+            super(GensimCorpus, self).__init__(input=None)
+            self.dictionary = dictionary
+            self.input = input
+        else:
+            self.original_input = input
+            # tokenize must be defined twice, before and after super init
+            self.tokenize = tokenize or generate_tokens
+            super(GensimCorpus, self).__init__(input=input)
+        self.tokenize = tokenize or generate_tokens
+
+    def get_texts(self):
+        """Iterate over the documents, yielding lists of tokens for each document.
+
+        To compute the dictionary, the Corpus iterates throught the docs on `__init__`
+        >>> corpus = GensimCorpus(d for d in ('A B C', 'A B X Y Z'))
+        >>> corpus.length
+        2
+        >>> list(corpus.get_texts())
+        [['A', 'B', 'C'], ['A', 'B', 'X', 'Y', 'Z']]
+        You can generate the same iterable twice (even a generator).
+        >>> list(corpus.get_texts())
+        [['A', 'B', 'C'], ['A', 'B', 'X', 'Y', 'Z']]
+        And document statistics are available **after** a complete pass through the iterable
+        >>> corpus.length
+        2
+        >>> corpus.num_tokens
+        8
+        >>> len(corpus.dictionary)
+        6
+        If you want sparse vectors, use the standard __iter__ on a TextCorpus instead of this method,
+        like so:
+        >> for vec in :
+        >>     print(vec)
+        """
+        self.original_input, self.input = tee(self.original_input)
+        num_tokens = 0
+        for doc_num, text in enumerate(self.input):
+            tokens = list(self.tokenize(text))
+            num_tokens += len(tokens)
+            if self.metadata:
+                yield tokens, (doc_num,)
+            else:
+                yield tokens
+
+        log.info("Finished iterating over a GensimCorpus of {} documents with {} tokens ({} unique).".format(
+                 doc_num + 1, num_tokens, len(self.dictionary)))
+        self.length = self.num_docs = doc_num + 1
+        self.num_tokens = num_tokens
