@@ -44,6 +44,27 @@ class FileLineGen(object):
                 yield line
 
 
+def unfat_dirs(path, dirs=True):
+    dirstats = find_files(srcdir, ext='', dirs=True, files=False)
+    stats = find_files(srcdir, ext='', dirs=True, files=False)
+    for d in stats:
+        if len(d['name']) > 80:
+            parentpath, name = os.path.split(d['path']))
+            basename, ext = os.path.splitext(name)
+            for i in range(40, 28, -1):
+                newname = d['name'][:i]
+                newpath = os.path.join(parentpath, newname)
+                if not os.path.exists(newpath):
+                    os.rename(d['path'], newpath)
+                    break
+                raise ValueError('Unable to find a safe place to rename {} to.'.format(d['path']))
+                with open(newpath + '.json', 'w') as f:
+                    s = '{\n'
+                    s += ',\n'.join(['  {}: {}'.format(k, '"' + v + '"' if isinstance(v, basestring) else v) for k, v  in d.iteritems()])
+                    s += '\n}'
+                    f.write(s)
+
+
 def find_files(path='', ext='', level=None, typ=list, dirs=False, files=True, verbosity=0):
     """Recursively find all files in the indicated directory
 
